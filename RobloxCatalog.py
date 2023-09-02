@@ -7,7 +7,7 @@ from time import sleep, strftime, time
 nextPageCursor = ""
 items = []
 basePath = os.path.dirname(os.path.abspath(__file__))
-cookieRBLXSEC = open(f"{basePath}\\.token", "r").read()
+cookieRBLXSEC = open(f"{basePath}\\RS.token", "r").read()
 xcsrfToken = None
 
 expectedPriceLimit = 0 # just in case anything terrible happens, it limits purchasing price!
