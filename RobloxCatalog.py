@@ -67,7 +67,7 @@ class PositionableSequenceIterator:
 
 # Functions
 
-def getXCRFTOKEN() -> str:
+def getXCRFTOKEN(forceRecheck: bool = False) -> str:
     '''
     Returns the x-crsf-token with .ROBLOXSECURITY via auth.roblox.com/v1/logout endpoint.
     It doesn't logout as the name indicates.
@@ -76,7 +76,7 @@ def getXCRFTOKEN() -> str:
 
     global xcsrfToken
     #GETTING XSRF TOKEN
-    if not xcsrfToken:
+    if not xcsrfToken or not forceRecheck:
         xcsrfToken = requests.post(
             api["Authentication"],
             headers = {
@@ -214,7 +214,7 @@ def purchaseAsset(productId: int, creatorTargetId: int, expectedPrice: int, expe
 
     headers = {
         "cookie": f".ROBLOSECURITY={cookieRBLXSEC}",
-        "x-csrf-token": getXCRFTOKEN(),
+        "x-csrf-token": getXCRFTOKEN(forceRecheck=True),
         "content-type": "application/json"
     }
 
@@ -254,6 +254,7 @@ else:
     print(items)
     input()
 
+print(getItemDetails(2417, "Bundle"))
 input("start purchasing?")
 
 # Iterates search results and purchases them after conditional checks
