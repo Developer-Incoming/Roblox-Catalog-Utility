@@ -1,5 +1,5 @@
-# Exclude any tokens inside by mistake after commiting an empty .token file
-/.token
+# Exclude any tokens inside by mistake after commiting an empty .token file/s
+*.token
 
 # Exclude code outputs
 *.txt
