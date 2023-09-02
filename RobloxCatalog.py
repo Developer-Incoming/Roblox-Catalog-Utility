@@ -5,6 +5,8 @@ from time import sleep, strftime, time
 
 
 nextPageCursor = ""
+startResultCollectingOnPage = None
+resetResultColTime = True
 items = []
 basePath = os.path.dirname(os.path.abspath(__file__))
 cookieRBLXSEC = open(f"{basePath}\\RS.token", "r").read()
@@ -106,19 +108,21 @@ def organizer():
     has been finished, which throws everything collected into the items
     list into the json file at the end of the file.
 
+
     Afterward the purchaseAsset function can be used to purchase any
     item included into the json file with productId to differeniate
     between any item published in Roblox, and creatorTargetId to make
     sure the creator of the asset is the same when purchase is happening,
     and finally the expectedPrice parameter to make sure the purchase
     price is the same as the client expects.
+
     And all of those paramters are necessary as they're included into the
     payload, but the productId which clearly indicates that it is needed
     to know what to post purchase.
     '''
     
 
-    global nextPageCursor
+    global nextPageCursor, startResultCollectingOnPage, resetResultColTime
 
     request = requests.get(
         url=f"https://catalog.roblox.com/v1/search/items?{arguments}{'' if not nextPageCursor else f'&cursor={nextPageCursor}'}"
@@ -129,7 +133,7 @@ def organizer():
     stepBack = False
 
     # Unix Timestamp to effectively cooldown requests: 60 requests / minute
-    startResultCollectingOnPage = int(time())
+    startResultCollectingOnPage = startResultCollectingOnPage if not resetResultColTime else int(time())
 
     for item in iterator:
         print(iterator.pos)
@@ -153,12 +157,17 @@ def organizer():
                     # print(itemDetails["productId"])
                     # input()
                     items.append({"productId": itemDetails["productId"],"creatorTargetId": itemDetails["creatorTargetId"],"expectedPrice": itemDetails["price"]})#item["id"])
+            
+            resetResultColTime = True
         else:
             cooldownCalculation = startResultCollectingOnPage + requestMaxRequestsRateLimit - int(time())
             cooldown = cooldownCalculation if cooldownCalculation > 0 else 5 # 5 seconds cooldown if requesting is exceeded to prevent further issues
+
             print(f"[{strftime('%H:%M:%S')}]: rate limit cooldown, {cooldown} seconds.")
             sleep(cooldown)
+
             stepBack = True
+            resetResultColTime = False
         
         # if iterator.pos > 4:
         #     nextPageCursor = None
