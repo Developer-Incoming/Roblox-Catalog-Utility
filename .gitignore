@@ -3,4 +3,5 @@
 
 # Exclude code outputs
 *.txt
+!requirements.txt
 *.json

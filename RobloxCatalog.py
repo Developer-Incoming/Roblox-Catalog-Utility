@@ -4,7 +4,7 @@ import json
 from time import sleep, strftime, time as unixTS
 
 
-readExistingResults = True
+readExistingResults = False # False to create results file to purchase from, True if use an existing one.
 nextPageCursor = ""
 startResultCollectingOnPage = None
 resetResultColTime = True
