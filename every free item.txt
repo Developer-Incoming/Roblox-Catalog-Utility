@@ -1,0 +1,12 @@
+[
+    {
+        "productId": 1629972297,
+        "creatorTargetId": 163493231,
+        "expectedPrice": 0
+    },
+    {
+        "productId": 1628085251,
+        "creatorTargetId": 163493231,
+        "expectedPrice": 0
+    }
+]
