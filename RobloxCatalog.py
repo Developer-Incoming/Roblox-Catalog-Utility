@@ -1,20 +1,30 @@
 import os
 import requests
 import json
-from time import sleep, strftime, time
+from time import sleep, strftime, time as unixTS
 
 
+readExistingResults = True
 nextPageCursor = ""
 startResultCollectingOnPage = None
 resetResultColTime = True
 items = []
 basePath = os.path.dirname(os.path.abspath(__file__))
+resultsFilePath = f"{basePath}\\results.json" # Doesn't matter if it exists or no
 cookieRBLXSEC = open(f"{basePath}\\RS.token", "r").read()
 xcsrfToken = None
 
+api = {
+    "Authentication": "https://auth.roblox.com/v1/logout",
+    "Item Details": "https://catalog.roblox.com/v1/catalog/items/",
+    "Catalog Search": "https://catalog.roblox.com/v1/search/items?",
+    "Purchase Product": "https://economy.roblox.com/v1/purchases/products/"
+}
+
+
 expectedPriceLimit = 0 # just in case anything terrible happens, it limits purchasing price!
 requestMaxRequestsRateLimit = 60 # How many requests per minute, maximum?
-purchaseRateLimitCooldown = 5
+purchaseRateLimitCooldown = 12
 
 arguments = f"category=All&limit=120&maxPrice={expectedPriceLimit}&minPrice=0&salesTypeFilter=1"#f"Category=CurrencyType=3&limit=120&maxPrice={expectedPriceLimit}&minPrice=0&SortType=3&salesTypeFilter=1"
 
@@ -68,7 +78,7 @@ def getXCRFTOKEN() -> str:
     #GETTING XSRF TOKEN
     if not xcsrfToken:
         xcsrfToken = requests.post(
-            "https://auth.roblox.com/v1/logout",
+            api["Authentication"],
             headers = {
                 "cookie": f".ROBLOSECURITY={cookieRBLXSEC}"
             }
@@ -76,11 +86,11 @@ def getXCRFTOKEN() -> str:
 
     return xcsrfToken
 
-def getProductDetails(id: int, productType: str = "Asset") -> dict:
+def getItemDetails(id: int, itemType: str = "Asset") -> dict:
     '''
     * id can be any asset
-    * productType can be Asset or Bundle, depending on the type of id provided,
-    and also you can get the productType from itemType in their details.
+    * itemType can be Asset or Bundle, depending on the type of id provided,
+    and also you can get the itemType from itemType in their details.
 
     https://catalog.roblox.com/v1/catalog/items/{id}/details?itemType=Asset
     and uses both .ROBLOXSECURITY and X-CSRF-TOKEN to prevent code 0 error, too many requests
@@ -88,7 +98,7 @@ def getProductDetails(id: int, productType: str = "Asset") -> dict:
     
 
     request = requests.get(
-        url=f"https://catalog.roblox.com/v1/catalog/items/{id}/details?itemType={productType}", # itemType=Asset/Bundle
+        url=f"{api['Item Details']}{id}/details?itemType={itemType}", # itemType=Asset/Bundle
         cookies={
             ".ROBLOSECURITY": cookieRBLXSEC,
         },
@@ -125,7 +135,7 @@ def organizer():
     global nextPageCursor, startResultCollectingOnPage, resetResultColTime
 
     request = requests.get(
-        url=f"https://catalog.roblox.com/v1/search/items?{arguments}{'' if not nextPageCursor else f'&cursor={nextPageCursor}'}"
+        url=f"{api['Catalog Search']}{arguments}{'' if not nextPageCursor else f'&cursor={nextPageCursor}'}"
     ) ## Gets raw catalog page items
 
     catalogJSON = json.loads(request.content)
@@ -133,12 +143,12 @@ def organizer():
     stepBack = False
 
     # Unix Timestamp to effectively cooldown requests: 60 requests / minute
-    startResultCollectingOnPage = startResultCollectingOnPage if not resetResultColTime else int(time())
+    startResultCollectingOnPage = startResultCollectingOnPage if not resetResultColTime else int(unixTS())
 
     for item in iterator:
         print(iterator.pos)
         # input(item)
-        itemDetails = getProductDetails(id=item["id"], productType=item["itemType"])
+        itemDetails = getItemDetails(id=item["id"], itemType=item["itemType"])
         print(f"[{strftime('%H:%M:%S')}]: {itemDetails}")
         
         if not itemDetails.get("errors"):
@@ -160,8 +170,10 @@ def organizer():
             
             resetResultColTime = True
         else:
-            cooldownCalculation = startResultCollectingOnPage + requestMaxRequestsRateLimit - int(time())
-            cooldown = cooldownCalculation if cooldownCalculation > 0 else 5 # 5 seconds cooldown if requesting is exceeded to prevent further issues
+            cooldownCalculation = startResultCollectingOnPage + requestMaxRequestsRateLimit - int(unixTS())
+            print(startResultCollectingOnPage, requestMaxRequestsRateLimit, int(unixTS()))
+            print(startResultCollectingOnPage + requestMaxRequestsRateLimit - int(unixTS()))
+            cooldown = cooldownCalculation if cooldownCalculation + 1 > 0 else 5 # 5 seconds cooldown if requesting is exceeded to prevent further issues
 
             print(f"[{strftime('%H:%M:%S')}]: rate limit cooldown, {cooldown} seconds.")
             sleep(cooldown)
@@ -217,7 +229,7 @@ def purchaseAsset(productId: int, creatorTargetId: int, expectedPrice: int, expe
     # buying item
 
     if expectedPrice <= expectedPriceLimit:
-        buyRequest = requests.post(f"https://economy.roblox.com/v1/purchases/products/{productId}", headers = headers, data = json.dumps(payload))
+        buyRequest = requests.post(f"{api['Purchase Product']}{productId}", headers = headers, data = json.dumps(payload))
         print(buyRequest.json())
         print(f"[{strftime('%H:%M:%S')}]: purchase rate limit cooldown, {purchaseRateLimitCooldown} seconds.")
         sleep(purchaseRateLimitCooldown)
@@ -227,18 +239,26 @@ def purchaseAsset(productId: int, creatorTargetId: int, expectedPrice: int, expe
 
 
 
-input("proceed to organizer?")
-# Gets all products in search results
-while nextPageCursor != None:# and not keyboard.is_pressed("esc"): # For early dev debugging
-    organizer()
+if not readExistingResults:
+    input("proceed to organizer?")
+    # Gets all products in search results
+    while nextPageCursor != None:# and not keyboard.is_pressed("esc"): # For early dev debugging
+        organizer()
 
-# Write and prettify search result in JSON
-open(f"{basePath}\\results.json", "w").write(json.dumps(items, indent=4))
+    # Write and prettify search result in JSON
+    open(resultsFilePath, "w").write(json.dumps(items, indent=4))
+else:
+    resultsFile = open(resultsFilePath, "r")
+    items = json.loads(resultsFile.read())
+    resultsFile.close()
+    print(items)
+    input()
 
 input("start purchasing?")
 
 # Iterates search results and purchases them after conditional checks
 for item in items:
-    print(item["productId"], item["creatorTargetId"], item["expectedPrice"])
-    input("next purchase?") 
-    purchaseAsset(item["productId"], item["creatorTargetId"], item["expectedPrice"])
+    if not (item["expectedPrice"] > expectedPriceLimit): # Paranoid
+        print(item["productId"], item["creatorTargetId"], item["expectedPrice"])
+        # input("next purchase?") 
+        purchaseAsset(item["productId"], item["creatorTargetId"], item["expectedPrice"])
