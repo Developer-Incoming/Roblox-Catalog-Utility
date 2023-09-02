@@ -2,7 +2,7 @@
 * text=auto
 
 # Exclude any tokens inside by mistake after commiting an empty .token file
-/*.token
+*.token
 
 # Exclude code outputs
 /*.txt
